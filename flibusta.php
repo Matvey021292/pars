@@ -1,6 +1,6 @@
 <?php
 
-function get_book_page($site, $url)
+function get_book_information($url)
 {
     $book = [];
     $page = file_get_contents($url);
@@ -10,15 +10,15 @@ function get_book_page($site, $url)
     }
     $content = phpQuery::newDocument($page);
     $book['title'] = get_title($content);
-    $book['image'] = $site . get_book_image($content);
+    $book['image'] = DOMAIN . get_book_image($content);
     $book['category'] = get_book_category($content);
     $book['description'] = get_description($content);
     $book['seria'] = get_author_category($content);
-    $book['format'] = get_format($site, $content);
+    $book['format'] = get_format($content);
     $book['size'] = get_size($content);
     $book['rating'] = get_rating($content);
-    $book['authors_book'] = get_authors($site, $content);
-    
+    $book['authors_book'] = get_authors($content);
+
     $book['translate'] = get_author_translate($content);
     $arr_url = explode('/', $url);
     $id = $arr_url[count($arr_url) - 1];
@@ -40,7 +40,7 @@ function get_book_category($page)
     if (!empty($category)) {
         return $category;
     }
-    
+
 }
 
 function get_another_book($page)
@@ -53,7 +53,7 @@ function get_another_book($page)
     if (!empty($books_arr)) {
         return $books_arr;
     }
-    
+
 }
 
 function get_author_category($page)
@@ -66,22 +66,22 @@ function get_author_category($page)
     if (!empty($categories)) {
         return $categories;
     }
-    
+
 }
 
-function get_format($site, $page)
+function get_format($page)
 {
     $links_arr = [];
     $links = pq($page)->find('#main span[style="size"]')->nextAll('a');
     foreach ($links as $key => $link) {
         $format = str_replace('(', '', pq($link)->text());
         $format = str_replace(')', '', $format);
-        $links_arr[$format] = $site . pq($link)->attr('href');
+        $links_arr[$format] = DOMAIN . pq($link)->attr('href');
     }
     if (!empty($links_arr)) {
         return $links_arr;
     }
-    
+
 }
 
 function get_author_translate($page)
@@ -94,7 +94,7 @@ function get_author_translate($page)
     if (!empty($links_arr)) {
         return $links_arr;
     }
-    
+
 }
 
 function get_rating($page)
@@ -103,18 +103,18 @@ function get_rating($page)
     if (!empty($title)) {
         return pq($title)->text();
     }
-    
+
 }
 
-function get_authors($site, $page)
+function get_authors($page)
 {
     $authors = pq($page)->find('#main');
     $authors_lists = pq($page)->find('#content-top')->next('.title')->next('script')->nextAll('a[href*="/a/"]');
     foreach (pq($authors_lists) as $key => $value) {
-        if(pq($value)->html() != ' ' && pq($value)->html() != ', '){
-            $author_list['original'][] = [
-                'title'=>pq($value)->html(),
-                'link'=> pq($value)->attr('href'),
+        if (pq($value)->html() != ' ' && pq($value)->html() != ', ') {
+            $author_list['author'][] = [
+                'title' => pq($value)->html(),
+                'link' => pq($value)->attr('href'),
             ];
         }
     }
@@ -122,23 +122,23 @@ function get_authors($site, $page)
     pq($author)->find('form,br,table,div,hr,a[href*="/g/"],h1,p,span,img,script')->remove();
     pq($author)->find('a[href*="/polka"]')->nextAll()->remove();
     pq($author)->find('a[href*="/polka"]')->remove();
-    preg_match('/\(перевод:(.*)\)/',  pq($author)->html(), $match);
-    if(isset($match[1])){
+    preg_match('/\(перевод:(.*)\)/', pq($author)->html(), $match);
+    if (isset($match[1])) {
         foreach (pq($match[1]) as $key => $value) {
-            if(pq($value)->html() != ' ' && pq($value)->html() != ', '){
-                foreach($author_list['original'] as $k => $v){
-                    if($v['link'] == pq($value)->attr('href') && $v['title'] == pq($value)->html()){
-                        unset($author_list['original'][$k]);
+            if (pq($value)->html() != ' ' && pq($value)->html() != ', ') {
+                foreach ($author_list['author'] as $k => $v) {
+                    if ($v['link'] == pq($value)->attr('href') && $v['title'] == pq($value)->html()) {
+                        unset($author_list['author'][$k]);
                     }
                 }
-                $author_list['translate'][] = [
-                    'title'=>pq($value)->html(),
-                    'link'=> pq($value)->attr('href'),
+                $author_list['translation'][] = [
+                    'title' => pq($value)->html(),
+                    'link' => pq($value)->attr('href'),
                 ];
             }
         }
     }
-   return $author_list;
+    return $author_list;
 }
 
 function get_size($page)
@@ -147,7 +147,7 @@ function get_size($page)
     if (!empty($title)) {
         return pq($title)->text();
     }
-    
+
 }
 
 function file_get_contents_status($url)
@@ -177,5 +177,5 @@ function page_not_found($url)
     } else {
         return false;
     }
-    
+
 }

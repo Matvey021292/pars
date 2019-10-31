@@ -11,22 +11,46 @@ function insert_db($arr)
 function if_book_isset($url)
 {
     $book = DB::queryFirstRow("SELECT `book` FROM `book` WHERE link=%s", $url);
-    if (!empty($book)) {
-        return $book['book'];
-    } else {
+    if (empty($book)) {
         return false;
     }
+
+    return $book['book'];
 }
 
-function get_author($title)
+function get_author($slug)
 {
-    $author = DB::queryFirstRow("SELECT `id` FROM `author` WHERE title=%s", $title);
+    $author = DB::queryFirstRow("SELECT `id` FROM `author` WHERE link like %s", $slug);
     if (!empty($author)) {
         return $author['id'];
     }
+}
+
+function insert_author($title, $link, $slug)
+{
+    DB::insert('author', array(
+        'title' => $title,
+        'link' => $link,
+        'slug' => $slug,
+    ));
 
 }
 
+function get_book_relationship($author_id, $book_id, $db)
+{
+    $relation_id = DB::queryFirstRow("SELECT `id` FROM `book_" . $db . "_relationship` WHERE author_id=%i AND book_id=%i", $author_id, $book_id);
+    if (!empty($relation_id)) {
+        return $relation_id['id'];
+    }
+}
+
+function set_book_relationship($author_id, $book_id, $db)
+{
+    DB::insert('book_' . $db . '_relationship', array(
+        'author_id' => $author_id,
+        'book_id' => $book_id,
+    ));
+}
 
 function update_author_link($id, $link)
 {
@@ -72,26 +96,12 @@ function insert_author_inform($id, $name, $img = '', $desc = '')
     ));
 }
 
-function insert_author($title, $link, $slug)
-{
-    DB::insert('author', array(
-        'title' => $title,
-        'link' => $link,
-        'slug' => $slug,
-    ));
-}
-
-
 function get_category($title, $author_id)
 {
     $category = DB::queryFirstRow("SELECT `id` FROM `category` WHERE category=%s AND author_id=%s", $title, $author_id);
     if (!empty($category)) {
         return $category['id'];
     }
-
-}
-
-function insert_book_relationship(){
 
 }
 

@@ -1,95 +1,71 @@
 <?php
 
-$authors = DB::query("SELECT * FROM `author` WHERE id>=%s LIMIT 1", 0);
+define('DOMAIN', 'https://flibusta.is');
+define('FOLDER', 'author_image');
 
-$domain = 'https://flibusta.is';
-$folder = 'author_image';
-if (!is_dir($folder)) {
-    mkdir($folder);
+$authors = DB::query("SELECT * FROM `author` WHERE id>=%s LIMIT 1", 16430);
+
+if (!is_dir(FOLDER)) {
+    mkdir(FOLDER);
 }
-
 foreach ($authors as $author) {
+
     if (!$author['link']) {
-        echo $author['title'] . "не существует\r\n";
+        echo $author['title'] . "не существует\n";
         continue;
     }
 
-    $author_arr = get_author_page($author, $domain);
-    if (empty($author_arr)) {
-        echo $author['title'] . "не существует\r\n";
-        continue;
-    }
-    $books = array_pop($author_arr);
-    $id_author_inform = insert_author_to_db($author_arr, $author);
-    if (isset($author_arr['img'])) {
-        echo "Скачивание изобрадение автора\r\n";
-        download_file($domain, $author_arr['img'], $folder);
-    }
-    if (empty($books)) {
+    $author_inform = get_author_page($author, DOMAIN);
+
+    if (empty($author_inform)) {
+        echo $author['title'] . "не существует\n";
         continue;
     }
 
-    foreach ($books as $book) {
-        $book_isset = if_book_isset($book);
-        if ($book_isset) {
-            echo $book_isset . "Книга уже существует\r\n";
+    insert_author_to_db($author_inform, $author);
+    download_resource($author_inform['img']);
+    $books_link = array_pop($author_inform);
+
+    if (empty($books_link)) {
+        echo "У автора {$author['id']} | {$author['title']} пустой список книг !!! \n";
+        continue;
+    }
+
+    foreach ($books_link as $book_link) {
+        if ($book_ID = if_book_isset($book_link)) {
+            echo "Книга # {$book_ID} уже существует\n";
             continue;
         }
-        $book_arr = get_book_page($domain, $book);
-        if(!empty($book_arr['authors_book'])){
-            if(!empty($book_arr['authors_book']['original'])){
-                foreach ($book_arr['authors_book']['original'] as $original => $authors_original) {
-                    if(!get_author($authors_original['title'])){
-                        $insert_author = insert_author($authors_original['title'], $domain . $authors_original['link'], transliteration(str_replace(' ', '', $authors_original['title'])));
-                    }
-                    $insert_author = get_author($authors_original['title']);
-                        debug($insert_author);
-                }
-            }
-        }
-        exit();
-        if (!empty($book_arr['seria'])) {
-            echo "Добавляем серию в базу данных\r\n";
-            $id_author_seria = inser_autor_category_to_db($book_arr['seria'], $author);
-        } else {
-            $id_author_seria = 0;
-        }
-        if (!empty($book_arr['category'])) {
-            echo "Добавляем категорию в базу данных\r\n";
-            $id_book_category = insert_book_category_to_db($book_arr['category']);
-        } else {
-            $id_book_category = 0;
-        }
-        $id_book = insert_book_to_db($book_arr, $author, $book, $id_author_seria, $id_book_category);
-        if (!empty($id_book_category)) {
-            insert_relationship_to_db($id_book_category, $id_book);
-        }
-        $id_book_inform = insert_book_inform_to_db($id_book, $book_arr);
-        if (isset($book_arr['image'])) {
-            echo "Скачивание изобрадение книги\r\n";
-            download_file('', $book_arr['image'], $folder);
-        }
-        $rating = get_rating_book($book_arr['rating']);
-        insert_rating_to_db($id_book, $rating);
-        insert_book_format_to_db($id_book, $book_arr['format'], $folder, $domain);
+        $book = get_book_information($book_link);
+
+        $series = set_author_series($book['seria'], $author['id']);
+        $categories = set_book_categories($book['category']);
+        $book_ID = set_book_db($book['title'], $author['id'], $book_link, $series, $categories);
+        set_cat_book_relationship($categories, $book_ID);
+        set_author_book_relationsip($book['authors_book'], $book_ID);
+        set_book_information($book_ID, $book);
+        download_resource($book['image'], false);
+        $rating = get_rating_book($book['rating']);
+        set_rating_book($book_ID, $rating);
+        set_book_format($book_ID, $book['format']);
     }
 }
 
-function get_author_page($author, $domain)
+function get_author_page($author)
 {
     $id = $author['id'];
     $author_name = $author['title'];
-    $page = str_replace('https://librusec.pro', 'https://flibusta.is', $author['link']);
+    $page = str_replace('https://librusec.pro', DOMAIN, $author['link']);
     $author = array();
     if ($content = check_author_page($author_name, $page)) {
-        $author = get_autor_inform($domain, $content);
+        $author = get_autor_inform($content);
 
     } else {
         $link = serach_author_page($author_name);
         if (!empty($link)) {
-            update_author_link($id, $domain . $link);
-            $content = check_author_page($author_name, $domain . $link);
-            $author = get_autor_inform($domain, $content);
+            update_author_link($id, DOMAIN . $link);
+            $content = check_author_page($author_name, DOMAIN . $link);
+            $author = get_autor_inform($content);
         } else {
             update_author_link($id, 0);
         }
@@ -153,43 +129,44 @@ function get_link_authors($page)
 
 }
 
-function get_autor_inform($site, $page)
+function get_autor_inform($page)
 {
     $author = array();
     $author['title'] = get_title($page);
     $img = !empty(get_book_image($page)) ? str_replace('http://cn.flibusta.is', '', get_book_image($page)) : '/190x288.jpg';
     $author['img'] = '/author_image' . $img;
     $author['description'] = !empty(get_author_desc($page)) ? get_author_desc($page) : '';
-    $author['books'] = get_book_link_array($site, $page);
+    $author['books'] = get_book_link_array($page);
     return $author;
 }
+
+/*
+Добавление авторов в базу
+ */
 
 function insert_author_to_db($arrs, $author)
 {
     $id = $author['id'];
     if (!get_author_inform($id)) {
         insert_author_inform($id, $arrs['title'], $arrs['img'], $arrs['description']);
-        echo $arrs['title'] . " - добавлен в базу данных\r\n";
-
+        echo "Создан новый атор в базе данных - {$arrs['title']}\r\n";
     } else {
-        echo $arrs['title'] . " - уже существует в базе данных\r\n";
+        echo "Автор {$arrs['title']} - уже существует в базе данных\r\n";
     }
-    return get_author_inform($id);
 }
 
-function insert_book_to_db($arr_book, $author, $url_book, $seria_id = 0, $category_arr)
+function set_book_db($title, $author_ID, $url_book, $seria = 0, $categoties)
 {
-    $author_id = $author['id'];
-    if (!get_book($arr_book['title'], $url_book)) {
-        echo $arr_book['title'] . " - добавлена в базу\r\n";
-        $slug = transliteration(str_replace(' ', '', $arr_book['title']));
-        $slug = preg_replace('/\s*\([^)]*\)/', '', $slug);
-        insert_book($author_id, json_encode($category_arr), $seria_id, $arr_book['title'], $url_book, $slug);
+    if (!get_book($title, $url_book)) {
+        echo $title . " - добавлена в базу \n";
+        insert_book($author_ID, json_encode($categoties), $seria, $title, $url_book, transliteration($title));
+    } else {
+        echo $title . " - уже существует \n";
     }
-    return get_book($arr_book['title'], $url_book);
+    return get_book($title, $url_book);
 }
 
-function insert_book_inform_to_db($book_id, $book_arr)
+function set_book_information($book_id, $book_arr)
 {
     if (!get_book_desc($book_id)) {
         insert_book_desc($book_id, $book_arr['description'], $book_arr['image'], $book_arr['size']);
@@ -197,61 +174,67 @@ function insert_book_inform_to_db($book_id, $book_arr)
     return get_book_desc($book_id);
 }
 
-function inser_autor_category_to_db($categories, $author)
+function set_author_series($series, $author_ID)
 {
-    $id = $author['id'];
+    if (empty($series)) {
+        return;
+    }
+    foreach ($series as $serie) {
+        if (get_category($serie, $author_ID)) {
+            echo "Cерия {$serie} существует в базе данных \n";
+        } else {
+            echo "Добавляем серию - {$serie} в базу данных\n";
+            insert_category($author_ID, $serie, transliteration($serie));
+        }
+    }
+    return get_category($serie, $author_ID);
+}
+
+function set_book_categories($categories)
+{
+    $categories_id = [];
+    if (empty($categories)) {
+        return;
+    }
     foreach ($categories as $key => $category) {
-        if (!get_category($category, $id)) {
-            $slug = transliteration(str_replace(' ', '', $category));
-            insert_category($id, $category, $slug);
-
+        if (get_category_book($category)) {
+            echo "Категория ({$category}) существует в базе данных\n";
+        } else {
+            echo "Создана категория ({$category}) в базе данных\n";
+            insert_category_book($category, transliteration($category));
         }
+        $categories_id[] = get_category_book($category);
     }
-    return get_category($category, $id);
+    return !empty($categories_id) ? $categories_id : null;
 }
 
-function insert_book_category_to_db($categories)
+function set_book_format($book_id, $formats)
 {
-    $cat_id = [];
-    foreach ($categories as $key => $category) {
-        if (!get_category_book($category)) {
-            $slug = transliteration(str_replace(' ', '', $category));
-            insert_category_book($category, $slug);
-        }
-        $cat_id[] = get_category_book($category);
+
+    $format = get_current_format($formats);
+    $key = array_search($format, $formats);
+
+    if (!get_book_format($book_id, $key)) {
+        $file = get_file_download($format);
+        insert_book_format($book_id, $key, $format, $file);
     }
-    return $cat_id;
 }
 
-function insert_book_format_to_db($book_id, $array_formats, $folder, $domain)
+function get_current_format($formats)
 {
-    foreach ($array_formats as $key => $format) {
-        if (!get_book_format($book_id, $key)) {
-            $url = str_replace('https://flibusta.is/', '', $format);
-            $path = $folder . '/' . $url;
-            if (array_key_exists('fb2', $array_formats)) {
-                if ($key == 'mobi' || $key == 'epub') {
-                    continue;
-                }
-
-                $res = get_file_download($path, $folder, $url, $domain);
-            } else {
-                $res = get_file_download($path, $folder, $url, $domain);
-            }
-            if (isset($res['file_name'])) {
-                insert_book_format($book_id, $key, $format, $res['file_name']);
-            } else if (isset($res['file_content'])) {
-                insert_book_format($book_id, $key, $format);
-                $book_ = get_book_format($book_id, $key);
-                if (!get_book_content_db($book_)) {
-                    insert_book_content_db($book_, $res['file_content']);
-                }
-            }
-        }
+    if (isset($formats['fb2'])) {
+        $format = $formats['fb2'];
+    } else if (isset($formats['epub'])) {
+        $format = $formats['epub'];
+    } else if (isset($formats['txt'])) {
+        $format = $formats['txt'];
+    } else {
+        $format = reset($formats);
     }
+    return $format;
 }
 
-function insert_relationship_to_db($categories, $book_id)
+function set_cat_book_relationship($categories, $book_id)
 {
     foreach ($categories as $key => $category) {
         if (!get_relationship_category($category, $book_id)) {
@@ -274,38 +257,79 @@ function get_rating_book($arr_rating)
     return $arr;
 }
 
-function insert_rating_to_db($id_book, $rating)
+function set_rating_book($id_book, $rating)
 {
     if (!get_rating_db($id_book)) {
         insert_rating_db($id_book, $rating['rating'], $rating['count_rating']);
     }
 }
 
-function get_file_download($path, $auhtor_folder, $url, $domain)
+function get_file_download($format)
 {
-    $data_arr = array();
+    $url = str_replace(DOMAIN . '/', '', $format);
+    $path = FOLDER . '/' . $url;
+
     if (!is_dir($path)) {
         wp_mkdir_p($path);
     }
 
-    if (stripos($url, 'read') == 0) {
-        $file_name = get_gurl_location($domain . '/' . $url);
-        $file_url = $domain . '/' . $url . '/' . $file_name;
-        $file_path = $auhtor_folder . '/' . $url . '/' . $file_name;
-        if (!file_exists($file_path)) {
-            echo "Скачивание книги " . $file_path . "\r\n";
-            $file_name = file_name($file_name);
-            download_file_curl($file_path, $file_url);
-            $data_arr['file_name'] = $file_name;
-        }
+    $resource = get_gurl_location(DOMAIN . '/' . $url);
+
+    if (!file_exists(FOLDER . '/' . $url . '/' . $resource)) {
+        echo "Скачивание книги - {$resource} \n";
+        download_file_curl(FOLDER . '/' . $url . '/' . $resource, $format . '/' . $resource);
     } else {
-        echo "Добавление книги " . $url . " в базу \r\n";
-        // $page = file_get_contents($domain . '/' . $url);
-        // $content = phpQuery::newDocument($page);
-        // download_image_from_page($auhtor_folder, $content, $domain);
-        // $data = get_page_content_book($content);
-        // $data_arr['file_content'] = $data;
-        $data_arr['file_content'] = $domain . '/' . $url;
+        echo "{$resource} - Книга уже существует \n";
     }
-    return $data_arr;
+    return $resource;
+}
+
+function set_author_book_relationsip($authors_work, $book_ID)
+{
+    if (empty($authors_work)) {
+        echo "У книги $book_ID нету авторов !!!! \n";
+        return;
+    }
+    foreach ($authors_work as $work => $authors) {
+        if (empty($authors)) {
+            echo "Список $work у книги $book_ID существует но пустой. Проверь !!!! \n";
+            continue;
+        }
+        foreach ($authors as $key => $author) {
+            $title = isset($author['title']) ? $author['title'] : null;
+            $link = isset($author['link']) ? DOMAIN . $author['link'] : null;
+            $slug = transliteration(str_replace(' ', '', $title));
+            if (!$title) {
+                echo "У книги $book_ID не найден заголовок !!! \n";
+                return;
+            }
+            if (!$link) {
+                echo "У книги $book_ID не найдена ссылка !!! \n";
+            }
+            if ($author_ID = get_author($link)) {
+                echo "Автор $title существует в базе!!! \n";
+            } else {
+                insert_author($title, $link, $slug);
+                $author_ID = get_author($link);
+                echo "Автор $title добавлен в базу данных! \n";
+            }
+            $relationship_ID = get_book_relationship($author_ID, $book_ID, $work);
+            if (!$relationship_ID) {
+                set_book_relationship($author_ID, $book_ID, $work);
+            }
+
+        }
+    }
+}
+
+function download_resource($image_url, $flag = true)
+{
+    $flag = $flag ? DOMAIN : '';
+    if (isset($image_url)) {
+        if (download_file(DOMAIN, $image_url, FOLDER)) {
+            echo "Скачивание ресурса\r\n";
+        } else {
+            echo "Ресурс уже существует\r\n";
+        }
+    }
 }

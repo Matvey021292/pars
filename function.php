@@ -22,7 +22,8 @@ function transliteration($str)
         'R', 'S', 'T', 'U', 'F', 'H', 'Ts', 'Ch', 'Sh', 'Sht', 'A', 'I', 'Y', 'e', 'Yu', 'Ya',
     ];
     $str = str_replace($cyr, $lat, $str);
-    return strtolower($str);
+    $str = preg_replace('/\s*\([^)]*\)/', '', $str);
+    return str_replace(' ', '', strtolower($str));
 }
 
 function file_get_contents_curl($url)
@@ -79,20 +80,20 @@ function get_author_desc($page)
 
 }
 
-function get_book_link_array($site, $content)
+function get_book_link_array($content)
 {
     $links = pq($content)->find('#main form[method="POST"] input');
     $autor_books = [];
     foreach ($links as $key => $link) {
         if (!empty(pq($link)->next('a')->attr('href'))) {
-            $autor_books[] = $site . pq($link)->next('a')->attr('href');
+            $autor_books[] = DOMAIN . pq($link)->next('a')->attr('href');
         }
     }
     if (empty($autor_books)) {
         $links = pq($content)->find('#main form[method="POST"] svg');
         foreach ($links as $key => $link) {
             if (!empty(pq($link)->next('a')->attr('href'))) {
-                $autor_books[] = $site . pq($link)->next('a')->attr('href');
+                $autor_books[] = DOMAIN . pq($link)->next('a')->attr('href');
             }
         }
     }
@@ -102,13 +103,12 @@ function get_book_link_array($site, $content)
 
 }
 
-function download_file($domain, $url = null, $folder = null, $file_name = null)
+function download_file($url = null, $folder = null, $file_name = null)
 {
     if ($url) {
         $arr = [];
         $url = str_replace('/author_image', '', $url);
         $file_names = explode('/', $url);
-        // $file_name = explode('/',$url)[count(explode('/',$url)) - 1];
         foreach ($file_names as $file_n) {
             if ($file_n == 'https:' || $file_n == '' || $file_n == 'flibusta.is' || $file_n == 'img' || $file_n == 'static') {
                 continue;
@@ -120,22 +120,24 @@ function download_file($domain, $url = null, $folder = null, $file_name = null)
         $folder = create_dir($arr, $folder);
     }
     $destination = $folder . $file_name;
-    if (!file_exists($destination)) {
-        $ch = curl_init();
-        $source = $domain . $url;
-        curl_setopt($ch, CURLOPT_URL, $source);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        $data = curl_exec($ch);
-        curl_close($ch);
-        $file = fopen($destination, "w+");
-        fputs($file, $data);
-        fclose($file);
+    if (file_exists($destination)) {
+        return;
     }
-
+    $ch = curl_init();
+    $source = DOMAIN . $url;
+    curl_setopt($ch, CURLOPT_URL, $source);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    $data = curl_exec($ch);
+    curl_close($ch);
+    $file = fopen($destination, "w+");
+    fputs($file, $data);
+    fclose($file);
+    return $destination;
 }
 
 function create_dir($dir, $fold)
 {
+
     array_unshift($dir, $fold);
     $dir = implode('/', $dir);
     if (!is_dir($dir)) {
@@ -249,7 +251,7 @@ function download_image_from_page($auhtor_folder, $content, $domain)
         }
         if (!file_exists($path . "/" . $file_name)) {
             echo "Cкачать изображение \r\n";
-            download_file_curl($path . "/" . $file_name, $domain . $path_url);
+            download_file_curl($path . "/" . $file_name, DOMAIN . $path_url);
         }
     }
 
