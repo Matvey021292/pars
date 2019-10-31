@@ -34,7 +34,7 @@ function file_get_contents_curl($url)
     curl_setopt($ch, CURLOPT_URL, $url);
     $data = curl_exec($ch);
     curl_close($ch);
-
+    
     return $data;
 }
 
@@ -44,7 +44,7 @@ function get_title($page)
     if (!empty($title)) {
         return pq($title)->text();
     }
-
+    
 }
 
 function get_book_image($page)
@@ -53,7 +53,7 @@ function get_book_image($page)
     if (!empty($img)) {
         return pq($img)->attr('src');
     }
-
+    
 }
 
 function get_description($page)
@@ -65,7 +65,7 @@ function get_description($page)
             if (!empty($desc)) {
                 return pq($desc)->html();
             }
-
+            
         }
     }
 }
@@ -77,7 +77,7 @@ function get_author_desc($page)
     if (!empty($content)) {
         return $content;
     }
-
+    
 }
 
 function get_book_link_array($content)
@@ -100,31 +100,30 @@ function get_book_link_array($content)
     if (!empty($autor_books)) {
         return $autor_books;
     }
-
+    
 }
 
-function download_file($url = null, $folder = null, $file_name = null)
+function download_file($domain, $url = null)
 {
-    if ($url) {
-        $arr = [];
-        $url = str_replace('/author_image', '', $url);
-        $file_names = explode('/', $url);
-        foreach ($file_names as $file_n) {
-            if ($file_n == 'https:' || $file_n == '' || $file_n == 'flibusta.is' || $file_n == 'img' || $file_n == 'static') {
-                continue;
-            }
-
-            $arr[] = $file_n;
+    $arr = [];
+    $url = str_replace('/author_image', '', $url);
+    $file_names = explode('/', $url);
+    foreach ($file_names as $file_n) {
+        if ($file_n == 'https:' || $file_n == '' || $file_n == 'flibusta.is' || $file_n == 'img' || $file_n == 'static') {
+            continue;
         }
-        $file_name = array_pop($arr);
-        $folder = create_dir($arr, $folder);
+        
+        $arr[] = $file_n;
     }
+  
+    $file_name = array_pop($arr);
+    $folder = create_dir($arr);
     $destination = $folder . $file_name;
     if (file_exists($destination)) {
         return;
     }
     $ch = curl_init();
-    $source = DOMAIN . $url;
+    $source = $domain . $url;
     curl_setopt($ch, CURLOPT_URL, $source);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $data = curl_exec($ch);
@@ -135,9 +134,9 @@ function download_file($url = null, $folder = null, $file_name = null)
     return $destination;
 }
 
-function create_dir($dir, $fold)
+function create_dir($dir)
 {
-
+    $fold = FOLDER;
     array_unshift($dir, $fold);
     $dir = implode('/', $dir);
     if (!is_dir($dir)) {
@@ -187,13 +186,13 @@ function wp_mkdir_p($target)
 function wp_is_stream($path)
 {
     $scheme_separator = strpos($path, '://');
-
+    
     if (false === $scheme_separator) {
         return false;
     }
-
+    
     $stream = substr($path, 0, $scheme_separator);
-
+    
     return in_array($stream, stream_get_wrappers(), true);
 }
 
@@ -236,13 +235,13 @@ function file_name($file_url)
     return $file_name;
 }
 
-function download_image_from_page($auhtor_folder, $content, $domain)
+function download_image_from_page($auhtor_folder, $content)
 {
     $file = pq($content)->find('#main');
     $images = pq($file)->find('img');
     foreach ($images as $key => $image) {
         $path_url = pq($image)->attr('src');
-        $file_name = file_name($domain . $path_url);
+        $file_name = file_name(DOMAIN . $path_url);
         $file_path = explode('/', $path_url);
         array_pop($file_path);
         $path = str_replace('/', '', $auhtor_folder) . implode('/', $file_path);
@@ -254,7 +253,7 @@ function download_image_from_page($auhtor_folder, $content, $domain)
             download_file_curl($path . "/" . $file_name, DOMAIN . $path_url);
         }
     }
-
+    
 }
 
 function get_page_content_book($content)

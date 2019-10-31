@@ -326,10 +326,10 @@ function download_resource($image_url, $flag = true)
 {
     $flag = $flag ? DOMAIN : '';
     if (isset($image_url)) {
-        if (download_file(DOMAIN, $image_url, FOLDER)) {
-            echo "Скачивание ресурса\r\n";
+        if (download_file($flag, $image_url)) {
+            echo "Скачивание ресурса\n";
         } else {
-            echo "Ресурс уже существует\r\n";
+            echo "Ресурс уже существует\n";
         }
     }
 }
