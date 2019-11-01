@@ -1,5 +1,5 @@
 <?php
-require "meekrodb/db.class.php";
+require "lib/meekrodb/db.class.php";
 DB::$user = 'matvey';
 DB::$password = '15112016';
 DB::$dbName = 'flibusta';

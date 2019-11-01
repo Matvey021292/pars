@@ -1,5 +1,4 @@
 <?php
-
 define('DOMAIN', 'https://flibusta.is');
 define('FOLDER', 'author_image');
 
