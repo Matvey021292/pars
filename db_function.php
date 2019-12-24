@@ -20,7 +20,9 @@ function if_book_isset($url)
 
 function get_author($slug)
 {
-    $author = DB::queryFirstRow("SELECT `id` FROM `author` WHERE link like %s", $slug);
+    $slug = str_replace('http://flibustahezeous3.onion', '', $slug);
+    $slug = str_replace('http://flibusta.is', '', $slug);
+    $author = DB::queryFirstRow("SELECT `id` FROM `author` WHERE link like '%".$slug."'");
     if (!empty($author)) {
         return $author['id'];
     }
@@ -116,7 +118,10 @@ function insert_category($id, $name, $category_slug)
 
 function get_book($title, $slug)
 {
-    $book = DB::queryFirstRow("SELECT `id` FROM `book` WHERE book=%s AND link=%s", $title, $slug);
+    $slug = str_replace('http://flibustahezeous3.onion', '', $slug);
+    $slug = str_replace('http://flibusta.is', '', $slug);
+    
+    $book = DB::queryFirstRow("SELECT `id` FROM `book` WHERE book=%s AND link like '%".$slug."'", $title);
     if (!empty($book)) {
         return $book['id'];
     }
@@ -224,4 +229,15 @@ function insert_book_desc($book_id, $desc, $img, $size)
         'book_img' => $img,
         'size' => $size,
     ));
+}
+
+
+function edit_author_id_in_book($table, $book_id, $author_id){
+    $col_name = 'author_id';
+    if($table == 'author_inform'){
+        $col_name = 'id_author';
+    }
+    DB::update($table, array(
+        $col_name=> $author_id
+        ), "id=%d", $book_id);
 }

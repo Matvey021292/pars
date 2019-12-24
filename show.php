@@ -4,7 +4,6 @@
 ini_set('error_reporting', E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
-
 require 'db_conf.php';
 
 ?>
@@ -26,13 +25,13 @@ require 'db_conf.php';
 	<div class="container">
 		<div class="row">
 			<?php
-			$authors = DB::query("SELECT * FROM `bk_author` WHERE id IN ( SELECT `bk_author_inform`.`id_author` FROM `bk_author_inform`)   ORDER BY `id` DESC LIMIT 10");
+			$authors = DB::query("SELECT * FROM `author` WHERE id IN ( SELECT `author_inform`.`id_author` FROM `author_inform`)   ORDER BY `id` DESC LIMIT 10");
 			foreach($authors as $key => $author){
-				$image = DB::queryFirstRow("SELECT `image`,`desc_author` FROM `bk_author_inform` WHERE id_author=%s", $author['id']);
+				$image = DB::queryFirstRow("SELECT `image`,`desc_author` FROM `author_inform` WHERE id_author=%s", $author['id']);
 				$authors[$key]['content'] = $image;
 			}
 			foreach($authors as $key => $author){
-				$books = DB::query("SELECT `book`,`link` FROM `bk_book` WHERE author_id=%s", $author['id']);
+				$books = DB::query("SELECT `book`,`link` FROM `book` WHERE author_id=%s", $author['id']);
 				$authors[$key]['book'] = $books;
 			}
 			// debug($authors);

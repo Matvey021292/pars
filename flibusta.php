@@ -1,11 +1,25 @@
 <?php
 
+function get_book_information_image($url){
+    $book = [];
+    $page = file_get_contents_curl($url);
+    if (!$page) {
+        $page = file_get_contents_curl($url);
+        echo "Страница не загрузилась, повторная загрузка";
+    }
+    $content = phpQuery::newDocument($page);
+    $book['image'] = get_book_image($content);
+    return $book;
+}
+
 function get_book_information($url)
 {
     $book = [];
-    $page = file_get_contents($url);
+    // $page = file_get_contents($url);
+    $page = file_get_contents_curl($url);
     if (!$page) {
-        $page = file_get_contents($url);
+        // $page = file_get_contents($url);
+        $page = file_get_contents_curl($url);
         echo "Страница не загрузилась, повторная загрузка";
     }
     $content = phpQuery::newDocument($page);

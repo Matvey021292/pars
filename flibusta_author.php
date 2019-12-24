@@ -1,8 +1,12 @@
 <?php
-define('DOMAIN', 'https://flibusta.is');
+
+// define('DOMAIN', 'https://flibusta.is');
+define('DOMAIN', 'http://flibustahezeous3.onion');
 define('FOLDER', 'author_image');
 
-$authors = DB::query("SELECT * FROM `author` WHERE id>=%s LIMIT 1", 16430);
+$last_book = DB::query("SELECT `author_id` FROM `book` ORDER by id DESC LIMIT 1" );
+$last_book = array_pop($last_book);
+$authors = DB::query("SELECT * FROM `author` WHERE id>=%s LIMIT 1000", $last_book['author_id'] - 10);
 
 if (!is_dir(FOLDER)) {
     mkdir(FOLDER);
@@ -55,6 +59,7 @@ function get_author_page($author)
     $id = $author['id'];
     $author_name = $author['title'];
     $page = str_replace('https://librusec.pro', DOMAIN, $author['link']);
+    $page = str_replace('https://flibusta.is', DOMAIN, $author['link']);
     $author = array();
     if ($content = check_author_page($author_name, $page)) {
         $author = get_autor_inform($content);
@@ -101,7 +106,8 @@ function check_text_similar($author_name, $title)
 function serach_author_page($author_name)
 {
     $author_name_unslash = str_replace(' ', '+', $author_name);
-    $serach = "https://flibusta.is/booksearch?ask=$author_name_unslash";
+    // $serach = "https://flibusta.is/booksearch?ask=$author_name_unslash";
+    $serach = DOMAIN . "/booksearch?ask=$author_name_unslash";
     $page = file_get_contents_curl($serach);
     $content = phpQuery::newDocument($page);
     $link_authors = get_link_authors($content);
@@ -158,6 +164,7 @@ function set_book_db($title, $author_ID, $url_book, $seria = 0, $categoties)
 {
     if (!get_book($title, $url_book)) {
         echo $title . " - добавлена в базу \n";
+        if(!$seria) $seria = 1;
         insert_book($author_ID, json_encode($categoties), $seria, $title, $url_book, transliteration($title));
     } else {
         echo $title . " - уже существует \n";
@@ -276,7 +283,7 @@ function get_file_download($format)
 
     if (!file_exists(FOLDER . '/' . $url . '/' . $resource)) {
         echo "Скачивание книги - {$resource} \n";
-        download_file_curl(FOLDER . '/' . $url . '/' . $resource, $format . '/' . $resource);
+        download_file_curl(FOLDER . '/' . $url . '/' . $resource, $resource);
     } else {
         echo "{$resource} - Книга уже существует \n";
     }

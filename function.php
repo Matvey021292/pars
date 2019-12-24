@@ -29,12 +29,13 @@ function transliteration($str)
 function file_get_contents_curl($url)
 {
     $ch = curl_init();
+    curl_setopt($ch, CURLOPT_PROXY, '127.0.0.1:9050');
+    curl_setopt($ch, CURLOPT_PROXYTYPE, 7);
     curl_setopt($ch, CURLOPT_HEADER, 0);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_URL, $url);
     $data = curl_exec($ch);
     curl_close($ch);
-    
     return $data;
 }
 
@@ -109,7 +110,7 @@ function download_file($domain, $url = null)
     $url = str_replace('/author_image', '', $url);
     $file_names = explode('/', $url);
     foreach ($file_names as $file_n) {
-        if ($file_n == 'https:' || $file_n == '' || $file_n == 'flibusta.is' || $file_n == 'img' || $file_n == 'static') {
+        if ($file_n == 'flibustahezeous3.onion' || $file_n == 'http:' || $file_n == 'https:' || $file_n == '' || $file_n == 'flibusta.is' || $file_n == 'img' || $file_n == 'static') {
             continue;
         }
         
@@ -124,6 +125,8 @@ function download_file($domain, $url = null)
     }
     $ch = curl_init();
     $source = $domain . $url;
+    curl_setopt($ch, CURLOPT_PROXY, '127.0.0.1:9050');
+    curl_setopt($ch, CURLOPT_PROXYTYPE, 7);
     curl_setopt($ch, CURLOPT_URL, $source);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $data = curl_exec($ch);
@@ -200,6 +203,8 @@ function get_gurl_location($location)
 {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $location);
+    curl_setopt($ch, CURLOPT_PROXY, '127.0.0.1:9050');
+    curl_setopt($ch, CURLOPT_PROXYTYPE, 7);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
     curl_setopt($ch, CURLOPT_HEADER, 1);
@@ -207,7 +212,7 @@ function get_gurl_location($location)
     $result = curl_exec($ch);
     curl_close($ch);
     $file_name = get_name_file($result);
-    return str_replace('http://static.flibusta.is:443/b.fb2/', '', $file_name);
+    return str_replace(DOMAIN . '/b.fb2/', '', $file_name);
 }
 
 function get_name_file($result)
@@ -225,7 +230,8 @@ function get_name_file($result)
 
 function download_file_curl($path, $url)
 {
-    exec("curl -L -o " . $path . ' ' . $url);
+    // exec("curl -L -o " . $path . ' ' . $url);
+    exec("curl --socks5-hostname  localhost:9050 ". DOMAIN ."/" . $url . "  --output " . $path);
 }
 
 function file_name($file_url)
